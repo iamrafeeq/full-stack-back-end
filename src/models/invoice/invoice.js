@@ -11,6 +11,8 @@ const invoiceSchema = new  Schema({
     description: String,
     amount: Number
   }],
+  taxPercentage: { type: Number, default: 0 },
+  taxAmount:     { type: Number, default: 0 },
   totalAmount: { type: Number, required: true },
   paymentStatus: {
     type: String,

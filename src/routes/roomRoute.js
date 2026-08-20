@@ -2,6 +2,7 @@ import express from "express";
 import {
   createRoom,
   getAllRooms,
+  getAvailableRooms,
   getSingleRoom,
   updateRoom,
   updateRoomStatus,
@@ -15,6 +16,7 @@ const RoomRoute = express.Router();
 
 // ── Public — no token required ──────────────────────────────────────────────
 RoomRoute.get("/getallrooms", getAllRooms);
+RoomRoute.get("/available",   getAvailableRooms);   // ?checkIn=&checkOut=&guests=
 RoomRoute.get("/getroom/:id", getSingleRoom);
 
 // ── Protected — protect applied per-route, not as a catch-all ───────────────

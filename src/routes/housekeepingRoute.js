@@ -5,6 +5,9 @@ import {
   reportIssue,
   getRequests,
   updateRequestStatus,
+  getHousekeepingStaff,
+  assignRequest,
+  getMyTasks,
 } from "../controller/housekeeping/housekeepingController.js";
 import protect          from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -15,14 +18,27 @@ const HousekeepingRoute = express.Router();
 HousekeepingRoute.use(protect);
 
 // ── Housekeeping ─────────────────────────────────────────────────────────────
-// Who can see which rooms need cleaning / mark a room clean
-HousekeepingRoute.get("/cleaning-rooms",       authenticateRole("manager", "housekeeping"), getCleaningRooms);
+HousekeepingRoute.get("/cleaning-rooms",         authenticateRole("manager", "housekeeping"), getCleaningRooms);
 HousekeepingRoute.patch("/rooms/:id/mark-clean", authenticateRole("manager", "housekeeping"), markRoomClean);
 
-// ── Maintenance ───────────────────────────────────────────────────────────────
-// Any staff member can file a report; manager+ can view and update
-HousekeepingRoute.post("/maintenance",      authenticateRole("manager", "receptionist", "housekeeping"), reportIssue);
-HousekeepingRoute.get("/maintenance",       authenticateRole("manager", "housekeeping"),                 getRequests);
-HousekeepingRoute.patch("/maintenance/:id", authenticateRole("manager"),                                 updateRequestStatus);
+// ── Maintenance — static paths MUST come before /:id wildcards ────────────────
+
+// Staff list for "assign to" dropdown
+HousekeepingRoute.get("/maintenance/housekeeping-staff", authenticateRole("admin", "manager", "receptionist"), getHousekeepingStaff);
+
+// Housekeeping staff: view own assigned tasks
+HousekeepingRoute.get("/maintenance/my-tasks", authenticateRole("housekeeping"), getMyTasks);
+
+// All staff with visibility: full list
+HousekeepingRoute.get("/maintenance",  authenticateRole("manager", "receptionist", "housekeeping"), getRequests);
+
+// Any staff member can file a report
+HousekeepingRoute.post("/maintenance", authenticateRole("manager", "receptionist", "housekeeping"), reportIssue);
+
+// Assign a request to a housekeeping staff member (auto-flips status open → in-progress)
+HousekeepingRoute.put("/maintenance/:id/assign", authenticateRole("admin", "manager", "receptionist"), assignRequest);
+
+// Update status (manager / receptionist / housekeeping)
+HousekeepingRoute.patch("/maintenance/:id", authenticateRole("manager", "receptionist", "housekeeping"), updateRequestStatus);
 
 export default HousekeepingRoute;

@@ -1,8 +1,10 @@
-import Booking from "../../models/Booking/Booking.js";
-import Room    from "../../models/rooms/rooms.js";
-import Payment from "../../models/Payment/Payment.js";
-import Invoice from "../../models/invoice/invoice.js";
-import User    from "../../models/userAuthModel.js";
+import Booking  from "../../models/Booking/Booking.js";
+import Room     from "../../models/rooms/rooms.js";
+import Payment  from "../../models/Payment/Payment.js";
+import Invoice  from "../../models/invoice/invoice.js";
+import User     from "../../models/userAuthModel.js";
+import Settings from "../../models/Settings/Settings.js";
+import createNotification from "../../utils/createNotification.js";
 
 const calculateNights = (checkIn, checkOut) => {
   const msPerDay = 1000 * 60 * 60 * 24;
@@ -90,6 +92,12 @@ export const createBooking = async (req, res) => {
         transactionId: `TXN${Date.now()}`,
       });
     }
+
+    // Notify all receptionist and admin users — fire-and-forget, non-critical
+    User.find({ role: { $in: ["admin", "receptionist"] } }).select("_id").then((staff) => {
+      const msg = `New booking created for room ${roomData.roomNumber ?? room}`;
+      staff.forEach((u) => createNotification(u._id, "new-booking", msg, booking._id));
+    }).catch(() => {});
 
     return res.status(201).json({ success: true, message: "Booking created successfully", booking });
   } catch (error) {
@@ -182,6 +190,12 @@ export const checkOutBooking = async (req, res) => {
     const extraCharges = Array.isArray(req.body.extraCharges) ? req.body.extraCharges : [];
     const extraTotal   = extraCharges.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
 
+    const settings      = await Settings.findOne();
+    const taxPercentage = settings?.taxPercentage ?? 0;
+    const subtotal      = booking.totalAmount + extraTotal;
+    const taxAmount     = parseFloat((subtotal * (taxPercentage / 100)).toFixed(2));
+    const totalAmount   = parseFloat((subtotal + taxAmount).toFixed(2));
+
     booking.status = "checked-out";
     await booking.save();
     await Room.findByIdAndUpdate(booking.room, { status: "cleaning" });
@@ -191,7 +205,9 @@ export const checkOutBooking = async (req, res) => {
       guest:         booking.guest,
       roomCharge:    booking.totalAmount,
       extraCharges,
-      totalAmount:   booking.totalAmount + extraTotal,
+      taxPercentage,
+      taxAmount,
+      totalAmount,
       paymentStatus: booking.paymentStatus,
     });
 

@@ -45,6 +45,48 @@ export const createRoom = async (req, res) => {
   }
 };
 
+// GET /api/rooms/available  (public)  ?checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&guests=N
+export const getAvailableRooms = async (req, res) => {
+  try {
+    const { checkIn, checkOut, guests } = req.query;
+
+    if (!checkIn || !checkOut) {
+      return res.status(400).json({ success: false, message: "checkIn and checkOut are required" });
+    }
+
+    const checkInDate  = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+
+    if (isNaN(checkInDate) || isNaN(checkOutDate) || checkOutDate <= checkInDate) {
+      return res.status(400).json({ success: false, message: "Invalid date range" });
+    }
+
+    // Find room IDs that have an overlapping confirmed booking
+    const overlappingBookings = await Booking.find({
+      status:      { $in: ["booked", "checked-in"] },
+      checkInDate: { $lt: checkOutDate },
+      checkOutDate:{ $gt: checkInDate },
+    }).select("room");
+
+    const bookedRoomIds = overlappingBookings.map((b) => b.room);
+
+    const filter = {
+      _id:    { $nin: bookedRoomIds },
+      status: { $ne: "maintenance" },
+    };
+
+    if (guests && Number(guests) > 1) {
+      filter.capacity = { $gte: Number(guests) };
+    }
+
+    const rooms = await Room.find(filter).sort({ price: 1 });
+
+    return res.status(200).json({ success: true, count: rooms.length, rooms });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // GET /api/getallrooms  (public)  ?page=1&limit=10
 export const getAllRooms = async (req, res) => {
   try {

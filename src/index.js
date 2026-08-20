@@ -13,6 +13,10 @@ import BookingRoute from "./routes/bookingRoute.js";
 import InvoiceRoute      from "./routes/invoiceRoute.js";
 import HousekeepingRoute  from "./routes/housekeepingRoute.js";
 import ReceptionistRoute  from "./routes/receptionistRoute.js";
+import ReportRoute        from "./routes/reportRoute.js";
+import FeedbackRoute      from "./routes/feedbackRoute.js";
+import SettingsRoute      from "./routes/settingsRoute.js";
+import NotificationRoute  from "./routes/notificationRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -25,9 +29,7 @@ root.use(cors({
 }));
 root.use(express.json());
 
-// Serve uploaded images as static files
-// A file saved to back-end/uploads/rooms/image.jpg is accessible at:
-// http://localhost:5000/uploads/rooms/image.jpg
+
 root.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 root.get("/", (req, res) => {
@@ -40,6 +42,10 @@ root.use("/api/bookings", BookingRoute);
 root.use("/api/invoices",      InvoiceRoute);
 root.use("/api/housekeeping",  HousekeepingRoute);
 root.use("/api/receptionist", ReceptionistRoute);
+root.use("/api/reports",      ReportRoute);
+root.use("/api/feedback",       FeedbackRoute);
+root.use("/api/settings",       SettingsRoute);
+root.use("/api/notifications",  NotificationRoute);
 
 
 mongoose.connect(process.env.MONGO_URI).then(() => {

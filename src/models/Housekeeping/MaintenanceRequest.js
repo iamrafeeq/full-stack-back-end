@@ -7,6 +7,7 @@ import mongoose, { Schema } from "mongoose";
 const maintenanceSchema = new Schema({
   room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
   reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   issue: { type: String, required: true },
   status: {
     type: String,
