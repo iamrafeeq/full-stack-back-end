@@ -31,9 +31,22 @@ const root = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 // Set CLIENT_URL in Vercel env vars to your production frontend URL
-root.use(
+// root.use(
+//   cors({
+//     origin: process.env.CLIENT_URL || "http://localhost:5173",
+//     credentials: true,
+//   }),
+// );
+
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://hmsfrontend-theta.vercel.app"
+];
+
+app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
