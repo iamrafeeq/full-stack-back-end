@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import Invoice from "../../models/invoice/invoice.js";
+import Payment from "../../models/Payment/Payment.js";
 
 // GET /api/invoices/  — admin/manager/receptionist see all; "user" sees own only
 export const getInvoices = async (req, res) => {
@@ -15,7 +16,18 @@ export const getInvoices = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ success: true, invoices });
+    // Batch-fetch payments for all booking IDs in one query, then attach per invoice
+    const bookingIds = invoices.map((inv) => inv.booking?._id).filter(Boolean);
+    const payments = await Payment.find({ booking: { $in: bookingIds } }).select("booking method paidAt");
+    const paymentMap = {};
+    payments.forEach((p) => { paymentMap[p.booking.toString()] = { method: p.method, paidAt: p.paidAt }; });
+
+    const result = invoices.map((inv) => ({
+      ...inv.toObject(),
+      paymentDetails: paymentMap[inv.booking?._id?.toString()] ?? null,
+    }));
+
+    return res.status(200).json({ success: true, invoices: result });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -38,7 +50,10 @@ export const getInvoiceById = async (req, res) => {
       return res.status(403).json({ success: false, message: "Not authorized to view this invoice" });
     }
 
-    return res.status(200).json({ success: true, invoice });
+    const payment = await Payment.findOne({ booking: invoice.booking._id }).select("method paidAt");
+    const paymentDetails = payment ? { method: payment.method, paidAt: payment.paidAt } : null;
+
+    return res.status(200).json({ success: true, invoice, paymentDetails });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

@@ -5,10 +5,14 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon src/index.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -18,7 +22,10 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.1",
     "multer": "^2.2.0",
-    "nodemon": "^3.1.14",
-    "pdfkit": "^0.19.1"
+    "pdfkit": "^0.19.1",
+    "stripe": "^22.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

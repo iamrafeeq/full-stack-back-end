@@ -36,9 +36,8 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Payment timing is required (now / checkin / checkout)" });
     }
 
-    if (paymentTiming === "now" && !paymentMethod) {
-      return res.status(400).json({ success: false, message: "Payment method is required when paying now" });
-    }
+    // paymentMethod no longer required at booking time — 'now' payments go through
+    // POST /api/payments/create-payment-intent + /confirm after booking is created
 
     // Receptionist / admin can book on behalf of a guest by supplying guestId
     let guestUserId = req.user._id;
@@ -62,6 +61,10 @@ export const createBooking = async (req, res) => {
     const roomData = await Room.findById(room);
     if (!roomData) return res.status(404).json({ success: false, message: "Room not found" });
 
+    if (!roomData.isActive) {
+      return res.status(400).json({ success: false, message: "This room is not currently available for booking" });
+    }
+
     if (roomData.status === "maintenance") {
       return res.status(400).json({ success: false, message: "This room is under maintenance and cannot be booked" });
     }
@@ -81,17 +84,8 @@ export const createBooking = async (req, res) => {
       nights,
       totalAmount,
       paymentTiming,
-      paymentStatus: paymentTiming === "now" ? "paid" : "pending",
+      paymentStatus: "pending",
     });
-
-    if (paymentTiming === "now") {
-      await Payment.create({
-        booking:       booking._id,
-        amount:        totalAmount,
-        method:        paymentMethod,
-        transactionId: `TXN${Date.now()}`,
-      });
-    }
 
     // Notify all receptionist and admin users — fire-and-forget, non-critical
     User.find({ role: { $in: ["admin", "receptionist"] } }).select("_id").then((staff) => {

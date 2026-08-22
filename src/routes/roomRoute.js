@@ -7,6 +7,8 @@ import {
   updateRoom,
   updateRoomStatus,
   deleteRoom,
+  deactivateRoom,
+  activateRoom,
 } from "../controller/rooms/roomController.js";
 import protect from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -37,6 +39,8 @@ RoomRoute.put(
 );
 
 RoomRoute.patch("/updatestatus/:id", protect, authenticateRole("admin", "manager"), updateRoomStatus);
-RoomRoute.delete("/deleteroom/:id",  protect, authenticateRole("admin"),            deleteRoom);
+RoomRoute.delete("/deleteroom/:id",     protect, authenticateRole("admin"), deleteRoom);
+RoomRoute.put("/deactivateroom/:id",  protect, authenticateRole("admin"), deactivateRoom);
+RoomRoute.put("/activateroom/:id",    protect, authenticateRole("admin"), activateRoom);
 
 export default RoomRoute;

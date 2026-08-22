@@ -71,8 +71,9 @@ export const getAvailableRooms = async (req, res) => {
     const bookedRoomIds = overlappingBookings.map((b) => b.room);
 
     const filter = {
-      _id:    { $nin: bookedRoomIds },
-      status: { $ne: "maintenance" },
+      _id:      { $nin: bookedRoomIds },
+      status:   { $ne: "maintenance" },
+      isActive: true,
     };
 
     if (guests && Number(guests) > 1) {
@@ -87,16 +88,18 @@ export const getAvailableRooms = async (req, res) => {
   }
 };
 
-// GET /api/getallrooms  (public)  ?page=1&limit=10
+// GET /api/getallrooms  (public)  ?page=1&limit=10&includeInactive=true
 export const getAllRooms = async (req, res) => {
   try {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, parseInt(req.query.limit) || 10);
     const skip  = (page - 1) * limit;
 
+    const filter = req.query.includeInactive === "true" ? {} : { isActive: true };
+
     const [rooms, total] = await Promise.all([
-      Room.find().skip(skip).limit(limit),
-      Room.countDocuments(),
+      Room.find(filter).skip(skip).limit(limit),
+      Room.countDocuments(filter),
     ]);
 
     return res.status(200).json({
@@ -176,15 +179,12 @@ export const deleteRoom = async (req, res) => {
     const room = await Room.findById(req.params.id);
     if (!room) return res.status(404).json({ success: false, message: "Room not found" });
 
-    const activeBooking = await Booking.findOne({
-      room: req.params.id,
-      status: { $in: ["booked", "checked-in"] },
-    });
-
-    if (activeBooking) {
+    // Block delete if ANY booking ever referenced this room — historical records must stay intact
+    const anyBooking = await Booking.findOne({ room: req.params.id });
+    if (anyBooking) {
       return res.status(400).json({
         success: false,
-        message: "Cannot delete a room with active or upcoming bookings",
+        message: "This room has booking history and cannot be permanently deleted. Deactivate it instead.",
       });
     }
 
@@ -192,5 +192,47 @@ export const deleteRoom = async (req, res) => {
     return res.status(200).json({ success: true, message: "Room deleted successfully" });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Failed to delete room", error: error.message });
+  }
+};
+
+// PUT /api/deactivateroom/:id  (admin only)
+export const deactivateRoom = async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
+
+    const activeBooking = await Booking.findOne({
+      room:   req.params.id,
+      status: { $in: ["booked", "checked-in"] },
+    });
+
+    if (activeBooking) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot deactivate a room with an active or upcoming booking. Wait until the current booking is complete.",
+      });
+    }
+
+    room.isActive = false;
+    await room.save();
+
+    return res.status(200).json({ success: true, message: "Room deactivated", room });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to deactivate room", error: error.message });
+  }
+};
+
+// PUT /api/activateroom/:id  (admin only)
+export const activateRoom = async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
+
+    room.isActive = true;
+    await room.save();
+
+    return res.status(200).json({ success: true, message: "Room activated", room });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to activate room", error: error.message });
   }
 };

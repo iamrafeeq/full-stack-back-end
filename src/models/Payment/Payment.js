@@ -9,8 +9,10 @@ const paymentSchema = new Schema(
       enum: ["credit_card", "debit_card", "easypaisa", "jazzcash", "bank_transfer", "cash"],
       required: true,
     },
-    transactionId: { type: String },
-    paidAt:        { type: Date, default: Date.now },
+    transactionId:          { type: String },
+    stripePaymentIntentId:  { type: String },
+    currency:               { type: String, default: "usd" },
+    paidAt:                 { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
