@@ -44,7 +44,7 @@ const allowedOrigins = [
   "https://hmsfrontend-theta.vercel.app"
 ];
 
-app.use(
+root.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
