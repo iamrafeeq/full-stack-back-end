@@ -4,8 +4,6 @@ dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
 import AuthRoute          from "./routes/userRoute.js";
 import RoomRoute          from "./routes/roomRoute.js";
 import BookingRoute       from "./routes/bookingRoute.js";
@@ -19,9 +17,6 @@ import NotificationRoute  from "./routes/notificationRoute.js";
 import ContactRoute       from "./routes/contactusRoute.js";
 import PaymentRoute       from "./routes/paymentRoute.js";
 import { stripeWebhook }  from "./controller/payment/paymentController.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
 
 // ── MongoDB — cached connection (serverless-safe) ───────────────────────────
 let dbConnected = false;
@@ -61,9 +56,6 @@ root.post(
 );
 
 root.use(express.json());
-
-// ── Static uploads (local dev only — use cloud storage in production) ────────
-root.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 root.get("/", (req, res) => {
   res.send("Hotel HMS API is running");

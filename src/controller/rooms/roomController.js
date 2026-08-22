@@ -2,7 +2,7 @@ import Room from "../../models/rooms/rooms.js";
 import Booking from "../../models/Booking/Booking.js";
 
 const filesToPaths = (files) =>
-  (files || []).map((f) => `uploads/rooms/${f.filename}`);
+  (files || []).map((f) => f.path);
 
 // POST /api/createroom  (admin / manager)
 export const createRoom = async (req, res) => {
