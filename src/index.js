@@ -13,8 +13,12 @@ import ReportRoute        from "./routes/reportRoute.js";
 import FeedbackRoute      from "./routes/feedbackRoute.js";
 import SettingsRoute      from "./routes/settingsRoute.js";
 import NotificationRoute  from "./routes/notificationRoute.js";
-import ContactRoute       from "./routes/contactusRoute.js";
-import PaymentRoute       from "./routes/paymentRoute.js";
+import ContactRoute            from "./routes/contactusRoute.js";
+import PaymentRoute            from "./routes/paymentRoute.js";
+import TableRoute              from "./routes/tableRoute.js";
+import TableReservationRoute   from "./routes/tableReservationRoute.js";
+import EventHallRoute          from "./routes/eventHallRoute.js";
+import EventHallBookingRoute   from "./routes/eventHallBookingRoute.js";
 import { stripeWebhook }  from "./controller/payment/paymentController.js";
 
 // ── MongoDB — cached connection (serverless-safe) ───────────────────────────
@@ -84,8 +88,12 @@ root.use("/api/reports",      ReportRoute);
 root.use("/api/feedback",     FeedbackRoute);
 root.use("/api/settings",     SettingsRoute);
 root.use("/api/notifications",NotificationRoute);
-root.use("/api/contact",      ContactRoute);
-root.use("/api/payments",     PaymentRoute);
+root.use("/api/contact",              ContactRoute);
+root.use("/api/payments",             PaymentRoute);
+root.use("/api/tables",               TableRoute);
+root.use("/api/table-reservations",   TableReservationRoute);
+root.use("/api/event-halls",          EventHallRoute);
+root.use("/api/event-hall-bookings",  EventHallBookingRoute);
 
 // ── Local development server (Vercel sets VERCEL=1, so this is skipped there)
 if (process.env.VERCEL !== "1") {

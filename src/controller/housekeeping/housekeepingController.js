@@ -1,4 +1,5 @@
 import Room               from "../../models/rooms/rooms.js";
+import Table              from "../../models/Table/Table.js";
 import MaintenanceRequest from "../../models/Housekeeping/MaintenanceRequest.js";
 import Notification       from "../../models/Notification/Notification.js";
 import User               from "../../models/userAuthModel.js";
@@ -217,6 +218,33 @@ export const getMyTasks = async (req, res) => {
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ success: true, tasks });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── Table cleaning — mirrors room cleaning endpoints ─────────────────────────
+
+// GET /api/housekeeping/tables  (manager / housekeeping)
+export const getCleaningTables = async (req, res) => {
+  try {
+    const tables = await Table.find({ status: "cleaning" }).select("tableNumber capacity location status");
+    return res.status(200).json({ success: true, tables });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PUT /api/housekeeping/tables/:id/done  (manager / housekeeping)
+export const markTableClean = async (req, res) => {
+  try {
+    const table = await Table.findByIdAndUpdate(
+      req.params.id,
+      { status: "available" },
+      { new: true },
+    );
+    if (!table) return res.status(404).json({ success: false, message: "Table not found" });
+    return res.status(200).json({ success: true, message: "Table marked as available", table });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

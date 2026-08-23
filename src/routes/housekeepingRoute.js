@@ -9,6 +9,8 @@ import {
   assignRequest,
   getMyTasks,
   deleteMaintenanceRequest,
+  getCleaningTables,
+  markTableClean,
 } from "../controller/housekeeping/housekeepingController.js";
 import protect          from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -44,5 +46,9 @@ HousekeepingRoute.patch("/maintenance/:id", authenticateRole("manager", "recepti
 
 // Hard-delete: removes request, its notifications, restores room if no other active requests remain
 HousekeepingRoute.delete("/maintenance/:id", authenticateRole("admin", "manager"), deleteMaintenanceRequest);
+
+// ── Table cleaning — mirrors room cleaning endpoints ─────────────────────────
+HousekeepingRoute.get("/tables",           authenticateRole("manager", "housekeeping"), getCleaningTables);
+HousekeepingRoute.put("/tables/:id/done",  authenticateRole("manager", "housekeeping"), markTableClean);
 
 export default HousekeepingRoute;
