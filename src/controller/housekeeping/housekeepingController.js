@@ -1,5 +1,6 @@
 import Room               from "../../models/rooms/rooms.js";
 import MaintenanceRequest from "../../models/Housekeeping/MaintenanceRequest.js";
+import Notification       from "../../models/Notification/Notification.js";
 import User               from "../../models/userAuthModel.js";
 import createNotification from "../../utils/createNotification.js";
 
@@ -162,6 +163,39 @@ export const assignRequest = async (req, res) => {
     ).catch(() => {});
 
     return res.status(200).json({ success: true, message: "Request assigned", request });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/housekeeping/maintenance/:id  (admin / manager)
+// Removes the request, its notifications, and restores the room if no other requests remain.
+export const deleteMaintenanceRequest = async (req, res) => {
+  try {
+    const request = await MaintenanceRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Maintenance request not found" });
+    }
+
+    const roomId = request.room;
+
+    // Delete the request and its linked notifications in parallel
+    await Promise.all([
+      MaintenanceRequest.findByIdAndDelete(request._id),
+      Notification.deleteMany({ relatedId: request._id }),
+    ]);
+
+    // Restore room to "available" only if no other open/in-progress requests remain
+    const otherActive = await MaintenanceRequest.findOne({
+      room:   roomId,
+      status: { $in: ["open", "in-progress"] },
+    });
+
+    if (!otherActive) {
+      await Room.findByIdAndUpdate(roomId, { status: "available" });
+    }
+
+    return res.status(200).json({ success: true, message: "Maintenance request deleted" });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

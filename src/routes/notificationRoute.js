@@ -4,6 +4,8 @@ import {
   getUnreadCount,
   markAllAsRead,
   markAsRead,
+  clearAllNotifications,
+  deleteNotification,
 } from "../controller/notification/notificationController.js";
 import protect from "../middleware/auth/Authmiddleware.js";
 
@@ -16,6 +18,8 @@ NotificationRoute.use(protect);
 NotificationRoute.get("/unread-count",   getUnreadCount);
 NotificationRoute.put("/mark-all-read",  markAllAsRead);
 NotificationRoute.get("/",               getMyNotifications);
+NotificationRoute.delete("/",            clearAllNotifications);
 NotificationRoute.put("/:id/read",       markAsRead);
+NotificationRoute.delete("/:id",         deleteNotification);
 
 export default NotificationRoute;

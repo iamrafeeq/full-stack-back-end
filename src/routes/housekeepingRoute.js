@@ -8,6 +8,7 @@ import {
   getHousekeepingStaff,
   assignRequest,
   getMyTasks,
+  deleteMaintenanceRequest,
 } from "../controller/housekeeping/housekeepingController.js";
 import protect          from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -40,5 +41,8 @@ HousekeepingRoute.put("/maintenance/:id/assign", authenticateRole("admin", "mana
 
 // Update status (manager / receptionist / housekeeping)
 HousekeepingRoute.patch("/maintenance/:id", authenticateRole("manager", "receptionist", "housekeeping"), updateRequestStatus);
+
+// Hard-delete: removes request, its notifications, restores room if no other active requests remain
+HousekeepingRoute.delete("/maintenance/:id", authenticateRole("admin", "manager"), deleteMaintenanceRequest);
 
 export default HousekeepingRoute;

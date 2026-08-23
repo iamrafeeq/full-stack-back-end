@@ -8,6 +8,7 @@ import {
   cancelBooking,
   payBooking,
 } from "../controller/booking/bookingController.js";
+import deleteBooking from "../controller/booking/completeBooking/deleteBooking.js";
 import protect           from "../middleware/auth/Authmiddleware.js";
 import authenticateRole  from "../middleware/roles/roleBase.js";
 
@@ -29,5 +30,8 @@ BookingRoute.put("/checkout/:id",  authenticateRole("admin", "manager", "recepti
 
 // Guest can cancel own booking; staff can cancel any (ownership check inside controller)
 BookingRoute.delete("/cancelbooking/:id",    cancelBooking);
+
+// Admin / manager hard-delete (cascades invoice + payment)
+BookingRoute.delete("/deletebooking/:id", authenticateRole("admin", "manager"), deleteBooking);
 
 export default BookingRoute;
