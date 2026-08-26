@@ -4,6 +4,8 @@ import {
   editUserProfile,
   getUserProfile,
   loginUser,
+  forgotPassword,
+  resetPassword,
 } from "../controller/userAuthController.js";
 import protect from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -12,8 +14,10 @@ import { GuestUser, updateUserStatus, updateUserRole } from "../controller/manag
 const AuthRoute = express.Router();
 
 // ─── Public routes ────────────────────────────────────────────────────────────
-AuthRoute.post("/register", createUser);
-AuthRoute.post("/login", loginUser);
+AuthRoute.post("/register",       createUser);
+AuthRoute.post("/login",          loginUser);
+AuthRoute.post("/forgot-password", forgotPassword);
+AuthRoute.post("/reset-password",  resetPassword);
 
 // ─── Protected routes — protect applied per-route, not as a catch-all ─────────
 AuthRoute.get("/profile", protect, (req, res) => {

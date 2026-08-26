@@ -1,7 +1,9 @@
 
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import User from "../models/userAuthModel.js";
 import getTokenFromHeader from "../middleware/imageUpload/Authjwt/jwt.js";
+import { sendPasswordResetEmail } from "../utils/mailer.js";
 
  export const createUser = async (req, res) => {
   try {
@@ -126,6 +128,89 @@ export const editUserProfile = async (req, res) => {
     return res.status(200).json({ message: "Profile updated successfully.", user: updated });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update profile.", error: error.message });
+  }
+};
+
+// POST /api/forgot-password
+// Always returns the same message regardless of whether the email exists — no enumeration.
+export const forgotPassword = async (req, res) => {
+  const GENERIC_MESSAGE = "If that email is registered, a password reset link has been sent.";
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+      return res.status(200).json({ success: true, message: GENERIC_MESSAGE });
+    }
+
+    // Rate-limit: block a new request if an unexpired token was issued within the last 60 seconds
+    if (user.resetPasswordExpires && user.resetPasswordExpires > Date.now()) {
+      const issuedAt = user.resetPasswordExpires.getTime() - 15 * 60 * 1000;
+      if (Date.now() - issuedAt < 60 * 1000) {
+        return res.status(200).json({ success: true, message: GENERIC_MESSAGE });
+      }
+    }
+
+    // Generate a random token — store only the sha256 hash, send the raw token in the link
+    const rawToken    = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    user.resetPasswordToken   = hashedToken;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl);
+    } catch (mailError) {
+      // Token is already saved — log the failure but don't expose it as a 500.
+      // The user can request again once SMTP is configured.
+      console.error("Password reset email failed:", mailError.message);
+    }
+
+    return res.status(200).json({ success: true, message: GENERIC_MESSAGE });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to process request", error: error.message });
+  }
+};
+
+// POST /api/reset-password
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token and newPassword are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken:   hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Reset link is invalid or has expired." });
+    }
+
+    user.password             = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordToken   = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return res.status(200).json({ success: true, message: "Password reset successfully. You can now log in." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to reset password", error: error.message });
   }
 };
 

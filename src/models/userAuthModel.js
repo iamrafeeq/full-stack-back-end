@@ -35,6 +35,9 @@ const userSchema = new Schema (
       default: "user", // public registration always lands here — a guest
     },
     isActive: { type: Boolean, default: true },
+
+    resetPasswordToken:   { type: String,  default: null },
+    resetPasswordExpires: { type: Date,    default: null },
   },
   { timestamps: true },
 );

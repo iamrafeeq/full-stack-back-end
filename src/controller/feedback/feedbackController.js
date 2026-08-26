@@ -101,6 +101,34 @@ export const getFeedbackForBooking = async (req, res) => {
   }
 };
 
+// GET /api/feedback/room/:roomId  (public — no auth required)
+export const getRoomFeedback = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ room: req.params.roomId }).select("_id");
+    const bookingIds = bookings.map((b) => b._id);
+
+    const feedbacks = await Feedback.find({ booking: { $in: bookingIds } })
+      .populate("guest", "name")
+      .sort({ createdAt: -1 });
+
+    const totalCount = feedbacks.length;
+    const averageRating = totalCount
+      ? parseFloat((feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalCount).toFixed(1))
+      : 0;
+
+    const reviews = feedbacks.map((f) => ({
+      rating:    f.rating,
+      comment:   f.comment || "",
+      guestName: f.guest?.name ? f.guest.name.split(" ")[0] : "Guest",
+      createdAt: f.createdAt,
+    }));
+
+    return res.status(200).json({ success: true, averageRating, totalCount, reviews });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // GET /api/feedback  (admin / manager)
 export const getAllFeedback = async (req, res) => {
   try {
