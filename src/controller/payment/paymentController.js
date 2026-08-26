@@ -1,6 +1,16 @@
 import Stripe from "stripe";
-import Booking from "../../models/Booking/Booking.js";
-import Payment from "../../models/Payment/Payment.js";
+import Booking         from "../../models/Booking/Booking.js";
+import Payment         from "../../models/Payment/Payment.js";
+import EventHallBooking from "../../models/EventHallBooking/EventHallBooking.js";
+
+// Find a booking from either the room-booking or event-hall-booking collection.
+const findBooking = async (bookingId) => {
+  const room = await Booking.findById(bookingId);
+  if (room) return { booking: room, type: "room" };
+  const hall = await EventHallBooking.findById(bookingId);
+  if (hall) return { booking: hall, type: "hall" };
+  return { booking: null, type: null };
+};
 
 // Lazy singleton — defers instantiation until first use so that dotenv.config()
 // has already run by the time this module's top-level code is evaluated.
@@ -19,7 +29,7 @@ export const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ success: false, message: "bookingId is required" });
     }
 
-    const booking = await Booking.findById(bookingId);
+    const { booking, type } = await findBooking(bookingId);
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
     const isStaff = ["admin", "manager", "receptionist"].includes(req.user.role);
@@ -41,7 +51,7 @@ export const createPaymentIntent = async (req, res) => {
       amount:   amountInCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
-      metadata: { bookingId: booking._id.toString() },
+      metadata: { bookingId: booking._id.toString(), bookingType: type },
     });
 
     return res.status(200).json({ success: true, clientSecret: paymentIntent.client_secret });
@@ -60,7 +70,7 @@ export const confirmPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "bookingId, paymentIntentId, and paymentMethod are required" });
     }
 
-    const booking = await Booking.findById(bookingId);
+    const { booking, type } = await findBooking(bookingId);
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
     const isStaff = ["admin", "manager", "receptionist"].includes(req.user.role);
@@ -68,9 +78,9 @@ export const confirmPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: "Not authorized to confirm payment for this booking" });
     }
 
-    // If the webhook already processed this payment, return the existing record rather than an error
+    // If the webhook already processed this payment, return early
     if (booking.paymentStatus === "paid") {
-      const existing = await Payment.findOne({ booking: booking._id });
+      const existing = type === "room" ? await Payment.findOne({ booking: booking._id }) : null;
       return res.status(200).json({ success: true, message: "Payment already recorded", payment: existing });
     }
 
@@ -80,22 +90,26 @@ export const confirmPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: "Payment not completed", stripeStatus: paymentIntent.status });
     }
 
-    // Idempotent create — webhook may have inserted this record between the check above and now
-    let payment = await Payment.findOne({ stripePaymentIntentId: paymentIntentId });
-    if (!payment) {
-      payment = await Payment.create({
-        booking:               booking._id,
-        amount:                paymentIntent.amount / 100,
-        method:                paymentMethod,
-        transactionId:         paymentIntent.id,
-        stripePaymentIntentId: paymentIntent.id,
-        currency:              paymentIntent.currency,
-        paidAt:                new Date(),
-      });
-    }
-
     booking.paymentStatus = "paid";
     await booking.save();
+
+    // For room bookings, also create a Payment record (used by invoices/reports).
+    // Event hall bookings track payment via paymentStatus on the booking document itself.
+    let payment = null;
+    if (type === "room") {
+      payment = await Payment.findOne({ stripePaymentIntentId: paymentIntentId });
+      if (!payment) {
+        payment = await Payment.create({
+          booking:               booking._id,
+          amount:                paymentIntent.amount / 100,
+          method:                paymentMethod,
+          transactionId:         paymentIntent.id,
+          stripePaymentIntentId: paymentIntent.id,
+          currency:              paymentIntent.currency,
+          paidAt:                new Date(),
+        });
+      }
+    }
 
     return res.status(200).json({ success: true, message: "Payment confirmed", payment });
   } catch (error) {
@@ -168,27 +182,36 @@ export const stripeWebhook = async (req, res) => {
 
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object;
-    const bookingId = paymentIntent.metadata?.bookingId;
+    const bookingId    = paymentIntent.metadata?.bookingId;
+    const bookingType  = paymentIntent.metadata?.bookingType;
     if (!bookingId) return res.status(200).json({ received: true });
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking || booking.paymentStatus === "paid") return res.status(200).json({ received: true });
+    if (bookingType === "hall") {
+      const hallBooking = await EventHallBooking.findById(bookingId);
+      if (hallBooking && hallBooking.paymentStatus !== "paid") {
+        hallBooking.paymentStatus = "paid";
+        await hallBooking.save();
+      }
+    } else {
+      const booking = await Booking.findById(bookingId);
+      if (!booking || booking.paymentStatus === "paid") return res.status(200).json({ received: true });
 
-    const existing = await Payment.findOne({ stripePaymentIntentId: paymentIntent.id });
-    if (!existing) {
-      await Payment.create({
-        booking:               booking._id,
-        amount:                paymentIntent.amount / 100,
-        method:                "credit_card",
-        transactionId:         paymentIntent.id,
-        stripePaymentIntentId: paymentIntent.id,
-        currency:              paymentIntent.currency,
-        paidAt:                new Date(),
-      });
+      const existing = await Payment.findOne({ stripePaymentIntentId: paymentIntent.id });
+      if (!existing) {
+        await Payment.create({
+          booking:               booking._id,
+          amount:                paymentIntent.amount / 100,
+          method:                "credit_card",
+          transactionId:         paymentIntent.id,
+          stripePaymentIntentId: paymentIntent.id,
+          currency:              paymentIntent.currency,
+          paidAt:                new Date(),
+        });
+      }
+
+      booking.paymentStatus = "paid";
+      await booking.save();
     }
-
-    booking.paymentStatus = "paid";
-    await booking.save();
   }
 
   return res.status(200).json({ received: true });

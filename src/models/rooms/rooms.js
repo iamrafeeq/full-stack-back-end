@@ -26,10 +26,7 @@ const roomSchema = new Schema({
   price: { type: Number, required: true, min: 0 },
   discountPrice: { type: Number, min: 0 },
 
-  amenities: [{
-    type: String,
-    enum: ['AC', 'WiFi', 'TV', 'Minibar', 'Balcony', 'RoomService', 'Heater']
-  }],
+  amenities: [{ type: String }],
 
   smokingAllowed: { type: Boolean, default: false },
 
