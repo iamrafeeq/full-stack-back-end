@@ -4,6 +4,13 @@ import bcrypt from "bcryptjs";
 import User from "../models/userAuthModel.js";
 import getTokenFromHeader from "../middleware/imageUpload/Authjwt/jwt.js";
 import { sendPasswordResetEmail } from "../utils/mailer.js";
+import Booking from "../models/Booking/Booking.js";
+import Payment from "../models/Payment/Payment.js";
+import Invoice from "../models/invoice/invoice.js";
+import EventHallBooking from "../models/EventHallBooking/EventHallBooking.js";
+import TableReservation from "../models/TableReservation/TableReservation.js";
+import Feedback from "../models/Feedback/Feedback.js";
+import Notification from "../models/Notification/Notification.js";
 
  export const createUser = async (req, res) => {
   try {
@@ -266,6 +273,28 @@ export const getUserProfile = async (req, res) => {
   }
 }
 
+// DELETE /api/delete-account  (protected — user deletes their own account + all data)
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
 
+    // Gather booking IDs first so we can cascade to payments
+    const bookingIds = (await Booking.find({ guest: userId }).select("_id")).map((b) => b._id);
 
+    await Promise.all([
+      Booking.deleteMany({ guest: userId }),
+      Payment.deleteMany({ booking: { $in: bookingIds } }),
+      Invoice.deleteMany({ guest: userId }),
+      EventHallBooking.deleteMany({ guest: userId }),
+      TableReservation.deleteMany({ guest: userId }),
+      Feedback.deleteMany({ guest: userId }),
+      Notification.deleteMany({ recipient: userId }),
+    ]);
 
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json({ success: true, message: "Account and all associated data have been permanently deleted." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to delete account.", error: error.message });
+  }
+};

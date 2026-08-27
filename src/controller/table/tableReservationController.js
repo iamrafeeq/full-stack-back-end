@@ -112,6 +112,7 @@ export const createReservation = async (req, res) => {
           to:          guest.email,
           guestName:   guest.name,
           type:        "table reservation",
+          detailsText: `Table: ${tableData.tableNumber}\nDate: ${fmt(reservationDate)}\nTime: ${reservationTime}\nParty Size: ${partySize}`,
           detailsHtml: `
             <p style="margin:4px 0;"><strong>Table:</strong> ${tableData.tableNumber}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${fmt(reservationDate)}</p>
@@ -120,7 +121,7 @@ export const createReservation = async (req, res) => {
           `,
         });
       } catch (err) {
-        console.error(`Confirmation email failed for table reservation ${reservation._id}:`, err.message);
+        console.error(`[mailer] Confirmation email FAILED for table reservation ${reservation._id} → ${guest.email} | code: ${err.code} | response: ${err.response || err.message}`);
       }
     }).catch(() => {});
 

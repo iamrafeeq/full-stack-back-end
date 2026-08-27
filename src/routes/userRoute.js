@@ -7,6 +7,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  deleteAccount,
 } from "../controller/userAuthController.js";
 import protect from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -33,7 +34,8 @@ AuthRoute.get(
 );
 
 AuthRoute.put("/updateuser/:id",    protect, editUserProfile);
-AuthRoute.put("/change-password",  protect, changePassword);
+AuthRoute.put("/change-password",   protect, changePassword);
+AuthRoute.delete("/delete-account", protect, deleteAccount);
 
 AuthRoute.get("/admin",        protect, authenticateRole("admin"),        (req, res) => res.status(200).json({ message: "Welcome, admin!" }));
 AuthRoute.get("/manager",      protect, authenticateRole("manager"),      (req, res) => res.status(200).json({ message: "Welcome, manager!" }));

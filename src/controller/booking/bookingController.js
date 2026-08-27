@@ -103,6 +103,7 @@ export const createBooking = async (req, res) => {
           to:          guest.email,
           guestName:   guest.name,
           type:        "room reservation",
+          detailsText: `Room: ${roomData.roomNumber} (${roomData.type})\nCheck-in: ${fmt(checkInDate)}\nCheck-out: ${fmt(checkOutDate)}\nNights: ${nights}\nTotal: $${totalAmount.toLocaleString()}`,
           detailsHtml: `
             <p style="margin:4px 0;"><strong>Room:</strong> ${roomData.roomNumber} (${roomData.type})</p>
             <p style="margin:4px 0;"><strong>Check-in:</strong> ${fmt(checkInDate)}</p>
@@ -112,7 +113,7 @@ export const createBooking = async (req, res) => {
           `,
         });
       } catch (err) {
-        console.error(`Confirmation email failed for booking ${booking._id}:`, err.message);
+        console.error(`[mailer] Confirmation email FAILED for room booking ${booking._id} → ${guest.email} | code: ${err.code} | response: ${err.response || err.message}`);
       }
     }).catch(() => {});
 

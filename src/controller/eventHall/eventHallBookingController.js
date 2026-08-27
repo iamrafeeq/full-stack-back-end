@@ -122,6 +122,7 @@ export const createHallBooking = async (req, res) => {
           to:          guest.email,
           guestName:   guest.name,
           type:        "event hall booking",
+          detailsText: `Hall: ${hallData.hallName}\nDate: ${fmt(eventDate)}\nTime: ${startTime} - ${endTime}\nEvent Type: ${eventType}\nGuests: ${guestCount}\nTotal: $${totalAmount.toLocaleString()}`,
           detailsHtml: `
             <p style="margin:4px 0;"><strong>Hall:</strong> ${hallData.hallName}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${fmt(eventDate)}</p>
@@ -132,7 +133,7 @@ export const createHallBooking = async (req, res) => {
           `,
         });
       } catch (err) {
-        console.error(`Confirmation email failed for hall booking ${booking._id}:`, err.message);
+        console.error(`[mailer] Confirmation email FAILED for hall booking ${booking._id} → ${guest.email} | code: ${err.code} | response: ${err.response || err.message}`);
       }
     }).catch(() => {});
 
