@@ -6,6 +6,7 @@ import {
   loginUser,
   forgotPassword,
   resetPassword,
+  changePassword,
 } from "../controller/userAuthController.js";
 import protect from "../middleware/auth/Authmiddleware.js";
 import authenticateRole from "../middleware/roles/roleBase.js";
@@ -31,7 +32,8 @@ AuthRoute.get(
   getUserProfile,
 );
 
-AuthRoute.put("/updateuser/:id", protect, editUserProfile);
+AuthRoute.put("/updateuser/:id",    protect, editUserProfile);
+AuthRoute.put("/change-password",  protect, changePassword);
 
 AuthRoute.get("/admin",        protect, authenticateRole("admin"),        (req, res) => res.status(200).json({ message: "Welcome, admin!" }));
 AuthRoute.get("/manager",      protect, authenticateRole("manager"),      (req, res) => res.status(200).json({ message: "Welcome, manager!" }));
