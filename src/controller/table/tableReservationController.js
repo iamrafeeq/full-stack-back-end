@@ -2,6 +2,7 @@ import TableReservation from "../../models/TableReservation/TableReservation.js"
 import Table            from "../../models/Table/Table.js";
 import User             from "../../models/userAuthModel.js";
 import createNotification from "../../utils/createNotification.js";
+import { sendBookingConfirmationEmail } from "../../utils/mailer.js";
 
 // ── Time-slot overlap helper — mirrors isRoomAvailable ───────────────────────
 // Returns true if the requested slot is free on that table+date.
@@ -100,6 +101,27 @@ export const createReservation = async (req, res) => {
     User.find({ role: { $in: ["admin", "receptionist"] } }).select("_id").then((staff) => {
       const msg = `New table reservation for table ${tableData.tableNumber ?? table}`;
       staff.forEach((u) => createNotification(u._id, "new-booking", msg, reservation._id));
+    }).catch(() => {});
+
+    // Confirmation email — fire-and-forget, never blocks the response
+    User.findById(guestUserId).select("name email").then(async (guest) => {
+      if (!guest?.email) return;
+      const fmt = (d) => new Date(d).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "long", day: "numeric" });
+      try {
+        await sendBookingConfirmationEmail({
+          to:          guest.email,
+          guestName:   guest.name,
+          type:        "table reservation",
+          detailsHtml: `
+            <p style="margin:4px 0;"><strong>Table:</strong> ${tableData.tableNumber}</p>
+            <p style="margin:4px 0;"><strong>Date:</strong> ${fmt(reservationDate)}</p>
+            <p style="margin:4px 0;"><strong>Time:</strong> ${reservationTime}</p>
+            <p style="margin:4px 0;"><strong>Party Size:</strong> ${partySize}</p>
+          `,
+        });
+      } catch (err) {
+        console.error(`Confirmation email failed for table reservation ${reservation._id}:`, err.message);
+      }
     }).catch(() => {});
 
     return res.status(201).json({ success: true, message: "Reservation created successfully", reservation });

@@ -10,6 +10,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export const sendBookingConfirmationEmail = async ({ to, guestName, type, detailsHtml }) => {
+  await transporter.sendMail({
+    from:    `"LuxuryStay Hospitality" <${process.env.SMTP_USER}>`,
+    to,
+    subject: "Booking Confirmed — LuxuryStay Hospitality",
+    html: `
+      <div style="font-family:Georgia,serif;max-width:500px;margin:auto;padding:24px;color:#2b2320;">
+        <h2 style="color:#C9A24B;margin-top:0;">Thank you for choosing LuxuryStay</h2>
+        <p>Dear ${guestName},</p>
+        <p>Your ${type} has been successfully confirmed. Here are your details:</p>
+        <div style="background:#faf8f5;padding:16px;border-radius:8px;margin:16px 0;border-left:3px solid #C9A24B;">
+          ${detailsHtml}
+        </div>
+        <p>We look forward to hosting you. If you have any questions, please don't hesitate to reach out.</p>
+        <p style="margin-top:24px;">Warm regards,<br/><strong>LuxuryStay Hospitality</strong></p>
+      </div>
+    `,
+  });
+};
+
 export const sendPasswordResetEmail = async (toEmail, resetUrl) => {
   await transporter.sendMail({
     from:    `"Hotel HMS" <${process.env.SMTP_USER}>`,

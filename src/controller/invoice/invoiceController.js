@@ -1,6 +1,77 @@
 import PDFDocument from "pdfkit";
 import Invoice from "../../models/invoice/invoice.js";
+import Booking from "../../models/Booking/Booking.js";
 import Payment from "../../models/Payment/Payment.js";
+
+// POST /api/invoices/generate  (admin / manager / receptionist)
+// body: { bookingId, extraCharges: [{ description, amount }] }
+export const generateInvoice = async (req, res) => {
+  try {
+    const { bookingId, extraCharges = [] } = req.body;
+
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "bookingId is required." });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
+    }
+
+    const existing = await Invoice.findOne({ booking: bookingId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "An invoice already exists for this booking." });
+    }
+
+    const extraTotal  = extraCharges.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+    const totalAmount = booking.totalAmount + extraTotal;
+
+    const invoice = await Invoice.create({
+      booking:      bookingId,
+      guest:        booking.guest,
+      roomCharge:   booking.totalAmount,
+      extraCharges,
+      totalAmount,
+    });
+
+    const populated = await Invoice.findById(invoice._id)
+      .populate("guest", "name email")
+      .populate({
+        path: "booking",
+        select: "checkInDate checkOutDate nights totalAmount paymentStatus",
+        populate: { path: "room", select: "roomNumber type" },
+      });
+
+    return res.status(201).json({ success: true, invoice: populated });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PATCH /api/invoices/markpaid/:id  (admin / manager / receptionist)
+export const markInvoicePaid = async (req, res) => {
+  try {
+    const invoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      { paymentStatus: "paid" },
+      { new: true }
+    )
+      .populate("guest", "name email")
+      .populate({
+        path: "booking",
+        select: "checkInDate checkOutDate nights totalAmount paymentStatus",
+        populate: { path: "room", select: "roomNumber type" },
+      });
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: "Invoice not found." });
+    }
+
+    return res.status(200).json({ success: true, message: "Invoice marked as paid.", invoice });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // GET /api/invoices/  — admin/manager/receptionist see all; "user" sees own only
 export const getInvoices = async (req, res) => {

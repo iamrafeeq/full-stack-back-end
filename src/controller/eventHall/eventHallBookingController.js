@@ -2,6 +2,7 @@ import EventHallBooking from "../../models/EventHallBooking/EventHallBooking.js"
 import EventHall        from "../../models/EventHall/EventHall.js";
 import User             from "../../models/userAuthModel.js";
 import createNotification from "../../utils/createNotification.js";
+import { sendBookingConfirmationEmail } from "../../utils/mailer.js";
 
 // ── Time-slot overlap helper — mirrors isTableAvailable ──────────────────────
 // Returns true if the requested time block is free on that hall+date.
@@ -110,6 +111,29 @@ export const createHallBooking = async (req, res) => {
     User.find({ role: { $in: ["admin", "receptionist"] } }).select("_id").then((staff) => {
       const msg = `New event hall booking for "${hallData.hallName}" on ${new Date(eventDate).toDateString()}`;
       staff.forEach((u) => createNotification(u._id, "new-booking", msg, booking._id));
+    }).catch(() => {});
+
+    // Confirmation email — fire-and-forget, never blocks the response
+    User.findById(guestUserId).select("name email").then(async (guest) => {
+      if (!guest?.email) return;
+      const fmt = (d) => new Date(d).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "long", day: "numeric" });
+      try {
+        await sendBookingConfirmationEmail({
+          to:          guest.email,
+          guestName:   guest.name,
+          type:        "event hall booking",
+          detailsHtml: `
+            <p style="margin:4px 0;"><strong>Hall:</strong> ${hallData.hallName}</p>
+            <p style="margin:4px 0;"><strong>Date:</strong> ${fmt(eventDate)}</p>
+            <p style="margin:4px 0;"><strong>Time:</strong> ${startTime} – ${endTime}</p>
+            <p style="margin:4px 0;"><strong>Event Type:</strong> ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}</p>
+            <p style="margin:4px 0;"><strong>Guests:</strong> ${guestCount}</p>
+            <p style="margin:4px 0;"><strong>Total Amount:</strong> $${totalAmount.toLocaleString()}</p>
+          `,
+        });
+      } catch (err) {
+        console.error(`Confirmation email failed for hall booking ${booking._id}:`, err.message);
+      }
     }).catch(() => {});
 
     return res.status(201).json({ success: true, message: "Event hall booking created successfully", booking });

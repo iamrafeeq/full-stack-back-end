@@ -5,6 +5,7 @@ import Invoice  from "../../models/invoice/invoice.js";
 import User     from "../../models/userAuthModel.js";
 import Settings from "../../models/Settings/Settings.js";
 import createNotification from "../../utils/createNotification.js";
+import { sendBookingConfirmationEmail } from "../../utils/mailer.js";
 
 const calculateNights = (checkIn, checkOut) => {
   const msPerDay = 1000 * 60 * 60 * 24;
@@ -91,6 +92,28 @@ export const createBooking = async (req, res) => {
     User.find({ role: { $in: ["admin", "receptionist"] } }).select("_id").then((staff) => {
       const msg = `New booking created for room ${roomData.roomNumber ?? room}`;
       staff.forEach((u) => createNotification(u._id, "new-booking", msg, booking._id));
+    }).catch(() => {});
+
+    // Confirmation email — fire-and-forget, never blocks the response
+    User.findById(guestUserId).select("name email").then(async (guest) => {
+      if (!guest?.email) return;
+      const fmt = (d) => new Date(d).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "long", day: "numeric" });
+      try {
+        await sendBookingConfirmationEmail({
+          to:          guest.email,
+          guestName:   guest.name,
+          type:        "room reservation",
+          detailsHtml: `
+            <p style="margin:4px 0;"><strong>Room:</strong> ${roomData.roomNumber} (${roomData.type})</p>
+            <p style="margin:4px 0;"><strong>Check-in:</strong> ${fmt(checkInDate)}</p>
+            <p style="margin:4px 0;"><strong>Check-out:</strong> ${fmt(checkOutDate)}</p>
+            <p style="margin:4px 0;"><strong>Nights:</strong> ${nights}</p>
+            <p style="margin:4px 0;"><strong>Total Amount:</strong> $${totalAmount.toLocaleString()}</p>
+          `,
+        });
+      } catch (err) {
+        console.error(`Confirmation email failed for booking ${booking._id}:`, err.message);
+      }
     }).catch(() => {});
 
     return res.status(201).json({ success: true, message: "Booking created successfully", booking });
