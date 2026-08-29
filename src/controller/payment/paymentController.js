@@ -151,7 +151,7 @@ export const getAllPayments = async (req, res) => {
     const payments = await Payment.find(filter)
       .populate({
         path: "booking",
-        select: "checkInDate checkOutDate nights totalAmount paymentStatus",
+        select: "checkInDate checkOutDate nights totalAmount paymentStatus guest room",
         populate: [
           { path: "room",  select: "roomNumber type" },
           { path: "guest", select: "name email" },

@@ -2,10 +2,7 @@ import Booking from "../../../models/Booking/Booking.js";
 import Invoice from "../../../models/invoice/invoice.js";
 import Payment from "../../../models/Payment/Payment.js";
 
-// DELETE /api/bookings/deletebooking/:id  (admin / manager only)
-//
-// Hard-deletes a booking and its associated invoice + payment records.
-// Blocks deletion while the guest is currently checked in — that stay is live.
+
 const deleteBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -20,7 +17,6 @@ const deleteBooking = async (req, res) => {
       });
     }
 
-    // Cascade-delete related records so no orphans remain
     await Promise.all([
       Invoice.deleteMany({ booking: booking._id }),
       Payment.deleteMany({ booking: booking._id }),
